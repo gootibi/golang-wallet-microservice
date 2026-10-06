@@ -1,18 +1,19 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/config"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/database"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/logger"
 	userHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/handler"
 	userRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 	userService "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/service"
 )
 
 func main() {
-	log.Println("Starting Monolith Wallet Application...")
+	// Initialize the log
+	logger.InnitLogger()
+	logger.Log.Info("Starting Monolith Wallet Application...")
 
 	// 1. Load configuration
 	cfg := config.LoadConfog()
@@ -20,7 +21,7 @@ func main() {
 	// 2. Connect to database with retry
 	db, err := database.ConnectWithRetry(cfg.DBDSN)
 	if err != nil {
-		log.Fatalf("Critical Error: could not connect to database after retries: %v", err)
+		logger.Log.Error("Critical Error: Could not connect to database after retries", "error", err)
 	}
 	defer db.Close()
 
@@ -44,9 +45,9 @@ func main() {
 	r.PUT("/api/v1/users/:id", uHandler.UpdateProfile)
 
 	// Start server
-	log.Println("Server running on port 8080...")
+	logger.Log.Info("Server running on port 8080...")
 
 	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("Server failed to run: %v", err)
+		logger.Log.Error("Server failed to run", "error", err)
 	}
 }
