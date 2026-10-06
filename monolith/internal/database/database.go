@@ -2,10 +2,10 @@ package database
 
 import (
 	"database/sql"
-	"log"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/logger"
 )
 
 func ConnectWithRetry(dsn string) (*sql.DB, error) {
@@ -15,14 +15,14 @@ func ConnectWithRetry(dsn string) (*sql.DB, error) {
 	backoff := 2 * time.Second
 
 	for i := 1; i <= maxRetries; i++ {
-		log.Printf("Connecting to database (Attemp %d/%d...)", i, maxRetries)
+		logger.Log.Info("Connecting to database", "attempt", i, "max_retries", maxRetries)
 
 		db, err = sql.Open("mysql", dsn)
 		if err == nil {
 			// do ping for make sure connection is alive
 			err = db.Ping()
 			if err == nil {
-				log.Println("Successfully connected to database")
+				logger.Log.Info("Successfully connected to database")
 
 				// setup connection pool properties
 				db.SetMaxOpenConns(25)
@@ -33,7 +33,7 @@ func ConnectWithRetry(dsn string) (*sql.DB, error) {
 			}
 		}
 
-		log.Printf("Database connection failed: %v. Retrying in %v...", err, backoff)
+		logger.Log.Info("Database connection failed, retrying", "error", err, "backoff", backoff)
 		time.Sleep(backoff)
 
 		// double backoff for waiting retry, or exponential backoff

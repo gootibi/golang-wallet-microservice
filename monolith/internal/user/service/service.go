@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
+	"net/http"
 
 	"github.com/google/uuid"
+	customError "github.com/gootibi/golang-wallet-microservice/monolith/internal/errors"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/user/model"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 )
@@ -30,7 +31,8 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 	// 1. Check if the email is already register
 	existing, _ := s.repo.GetByEmail(ctx, req.Email)
 	if existing != nil {
-		return nil, errors.New("email already registered")
+		// Return custom AppError
+		return nil, customError.NewAppError(http.StatusConflict, "EMAIL_ALREADY_REGISTERED", "This email already registered.")
 	}
 
 	// 2. Create new user object
@@ -43,7 +45,8 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 
 	// 3. Store in the database
 	if err := s.repo.Create(ctx, user); err != nil {
-		return nil, err
+		// Return internal server error
+		return nil, customError.ErrInternalServer
 	}
 
 	return s.repo.GetByID(ctx, user.ID)
@@ -51,19 +54,24 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 
 // GetProfile implements [UserService].
 func (s *userService) GetProfile(ctx context.Context, id string) (*model.User, error) {
-	return s.repo.GetByID(ctx, id)
+	u, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "User not found")
+	}
+
+	return u, nil
 }
 
 // UpdateProfile implements [UserService].
 func (s *userService) UpdateProfile(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error) {
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "User not found")
 	}
 
 	user.FullName = req.FullName
 	if err := s.repo.Update(ctx, user); err != nil {
-		return nil, err
+		return nil, customError.ErrInternalServer
 	}
 
 	return s.repo.GetByID(ctx, id)
