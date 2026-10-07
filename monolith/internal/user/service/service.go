@@ -3,17 +3,21 @@ package service
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/auth"
 	customError "github.com/gootibi/golang-wallet-microservice/monolith/internal/errors"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/user/model"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	Register(ctx context.Context, req model.CreateUserRequest) (*model.User, error)
 	GetProfile(ctx context.Context, id string) (*model.User, error)
 	UpdateProfile(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error)
+	Login(ctx context.Context, req model.LoginRequest) (*model.LoginResponse, error)
 }
 
 func NewuserService(repo repository.UserRepository) UserService {
@@ -35,12 +39,19 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 		return nil, customError.NewAppError(http.StatusConflict, "EMAIL_ALREADY_REGISTERED", "This email already registered.")
 	}
 
+	// Hash the pasword with bcrypt
+	hasedBytes, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		// Return internal server error
+		return nil, customError.ErrInternalServer
+	}
+
 	// 2. Create new user object
 	user := &model.User{
 		ID:           uuid.New().String(),
 		FullName:     req.FullName,
 		Email:        req.Email,
-		PasswordHash: req.Password, // TODO: hashing the password before storing it in the database
+		PasswordHash: string(hasedBytes),
 	}
 
 	// 3. Store in the database
@@ -75,4 +86,37 @@ func (s *userService) UpdateProfile(ctx context.Context, id string, req model.Up
 	}
 
 	return s.repo.GetByID(ctx, id)
+}
+
+// Login implements [UserService].
+func (s *userService) Login(ctx context.Context, req model.LoginRequest) (*model.LoginResponse, error) {
+	// Find by email
+	user, err := s.repo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, customError.NewAppError(http.StatusUnauthorized, "INVALID_CREDENTIALS", "Wrong email or password")
+	}
+
+	// Verify the hash password
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return nil, customError.NewAppError(http.StatusUnauthorized, "INVALID_CREDENTIALS", "Wrong email or password")
+	}
+
+	// Generate access token 15 minutes
+	accessToken, err := auth.GenerateToken(user.ID, user.Email, 15*time.Minute)
+	if err != nil {
+		return nil, customError.ErrInternalServer
+	}
+
+	// Generate refresh token 7 days
+	refreshToken, err := auth.GenerateToken(user.ID, user.Email, 7*24*time.Hour)
+	if err != nil {
+		return nil, customError.ErrInternalServer
+	}
+
+	// Return the tokens
+	return &model.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

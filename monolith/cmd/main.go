@@ -5,6 +5,7 @@ import (
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/config"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/database"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/logger"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/middleware"
 	userHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/handler"
 	userRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 	userService "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/service"
@@ -39,10 +40,27 @@ func main() {
 	// Attach the logger middleware
 	r.Use(gin.Logger())
 
-	// Routes
-	r.POST("/api/v1/users", uHandler.Register)
-	r.GET("/api/v1/users/:id", uHandler.GetProfile)
-	r.PUT("/api/v1/users/:id", uHandler.UpdateProfile)
+	// Register global error Handling middleware
+	r.Use(middleware.ErrorHandler())
+
+	// Routes grouping
+	v1 := r.Group("/api/v1")
+	{
+		// Public routes
+		v1.POST("/users/register", uHandler.Register)
+		v1.POST("/users/login", uHandler.Login)
+		v1.POST("/users", uHandler.Register)
+		v1.GET("/users/:id", uHandler.GetProfile)
+		v1.PUT("/users/:id", uHandler.UpdateProfile)
+
+		// Protected routes, only can be accessible if have valid JWT token
+		protected := v1.Group("")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			protected.GET("/users/me", uHandler.GetProfileMe)
+
+		}
+	}
 
 	// Start server
 	logger.Log.Info("Server running on port 8080...")
