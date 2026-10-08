@@ -9,6 +9,9 @@ import (
 	userHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/handler"
 	userRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 	userService "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/service"
+	walletHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/wallet/handler"
+	walletRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/wallet/repository"
+	walletService "github.com/gootibi/golang-wallet-microservice/monolith/internal/wallet/service"
 )
 
 func main() {
@@ -27,15 +30,27 @@ func main() {
 	defer db.Close()
 
 	// 3. Initial layer
+	// Repository
 	uRepo := userRepository.NewMySQLUserRepository(db)
-	uSvc := userService.NewuserService(uRepo)
+	wRepo := walletRepository.NewMySQLWalletRepository(db)
+
+	// Service
+	uSvc := userService.NewuserService(db, uRepo, wRepo) // Inject db to user service for transaction
+	wSvc := walletService.NewWalletService(wRepo)
+
+	// Handler
 	uHandler := userHandler.NewUserHandler(uSvc)
+	wHandler := walletHandler.NewWalletHandler(wSvc)
 
 	// 4. Setup gin router
-	r := gin.Default()
+	// r := gin.Default()
+	r := gin.New()
 
 	// Force log's color
 	gin.ForceConsoleColor()
+
+	// Recovery middleware
+	r.Use(gin.Recovery())
 
 	// Attach the logger middleware
 	r.Use(gin.Logger())
@@ -49,16 +64,16 @@ func main() {
 		// Public routes
 		v1.POST("/users/register", uHandler.Register)
 		v1.POST("/users/login", uHandler.Login)
-		v1.POST("/users", uHandler.Register)
-		v1.GET("/users/:id", uHandler.GetProfile)
-		v1.PUT("/users/:id", uHandler.UpdateProfile)
+		// v1.POST("/users", uHandler.Register)
+		// v1.GET("/users/:id", uHandler.GetProfile)
+		// v1.PUT("/users/:id", uHandler.UpdateProfile)
 
 		// Protected routes, only can be accessible if have valid JWT token
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/users/me", uHandler.GetProfileMe)
-
+			protected.GET("/wallets/me", wHandler.GetMyWallet)
 		}
 	}
 

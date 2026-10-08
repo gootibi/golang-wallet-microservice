@@ -13,6 +13,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	Update(ctx context.Context, u *model.User) error
+	CreateTx(ctx context.Context, tx *sql.Tx, u *model.User) error
 }
 
 func NewMySQLUserRepository(db *sql.DB) UserRepository {
@@ -72,5 +73,14 @@ func (r *mysqlUserRepository) Update(ctx context.Context, u *model.User) error {
 
 	_, err := r.db.ExecContext(ctx, query, u.FullName, u.ID)
 
+	return err
+}
+
+// CreateTx implements [UserRepository].
+func (r *mysqlUserRepository) CreateTx(ctx context.Context, tx *sql.Tx, u *model.User) error {
+	query := `INSERT INTO users (id, full_name, email, password_hash) VALUES(?, ?, ?, ?);`
+
+	_, err := tx.ExecContext(ctx, query, u.ID, u.FullName, u.Email, u.PasswordHash)
+	
 	return err
 }
