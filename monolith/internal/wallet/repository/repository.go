@@ -11,6 +11,7 @@ import (
 type WalletRepository interface {
 	CreateTx(ctx context.Context, tx *sql.Tx, w *model.Wallet) error
 	GetByUserID(ctx context.Context, userID string) (*model.Wallet, error)
+	UpdateBalanceTx(ctx context.Context, tx *sql.Tx, walletID string, newBalance float64, currentWersion int) error
 }
 
 func NewMySQLWalletRepository(db *sql.DB) WalletRepository {
@@ -53,4 +54,26 @@ func (r *mysqlWalletRepository) GetByUserID(ctx context.Context, userID string) 
 	}
 
 	return w, nil
+}
+
+// UpdateWallet implements [WalletRepository].
+func (r *mysqlWalletRepository) UpdateBalanceTx(ctx context.Context, tx *sql.Tx, walletID string, newBalance float64, currentVersion int) error {
+	query := `UPDATE wallets SET balance = ?, version = version + 1 WHERE id = ? AND version = ?;`
+
+	result, err := tx.ExecContext(ctx, query, newBalance, walletID, currentVersion)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	// If 0 rows affected, it means database version has changhed - concurreny conflict
+	if rowsAffected == 0 {
+		return errors.New("Concurrent update detected: version mismatch")
+	}
+
+	return nil
 }
