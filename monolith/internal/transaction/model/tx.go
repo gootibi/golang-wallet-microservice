@@ -6,14 +6,14 @@ type TransactionStatus string
 
 const (
 	PENDING    TransactionStatus = "pending"
-	PROCESSING TransactionStatus = "processing"
+	// PROCESSING TransactionStatus = "processing"
 	SUCCESS    TransactionStatus = "success"
-	COMPLETED  TransactionStatus = "completed"
-	CONFIRMED  TransactionStatus = "confirmed"
+	// COMPLETED  TransactionStatus = "completed"
+	// CONFIRMED  TransactionStatus = "confirmed"
 	FAILED     TransactionStatus = "failed"
-	ERROR      TransactionStatus = "error"
-	CANCELLED  TransactionStatus = "cancelled"
-	EXPIRED    TransactionStatus = "expired"
+	// ERROR      TransactionStatus = "error"
+	// CANCELLED  TransactionStatus = "cancelled"
+	// EXPIRED    TransactionStatus = "expired"
 )
 
 type Transaction struct {

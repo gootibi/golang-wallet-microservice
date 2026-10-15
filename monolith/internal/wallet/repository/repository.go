@@ -33,7 +33,7 @@ func (r *mysqlWalletRepository) CreateTx(ctx context.Context, tx *sql.Tx, w *mod
 
 // GetByUserID implements [WalletRepository].
 func (r *mysqlWalletRepository) GetByUserID(ctx context.Context, userID string) (*model.Wallet, error) {
-	query := `SELECT id, user_id, balance, currency, status, version, created_at, updated_at  FROM wallets WHERE id = ? AND deleted_at IS NULL;`
+	query := `SELECT id, user_id, balance, currency, status, version, created_at, updated_at  FROM wallets WHERE user_id = ? AND deleted_at IS NULL;`
 	w := &model.Wallet{}
 
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(
