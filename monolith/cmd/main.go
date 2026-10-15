@@ -4,8 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/config"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/database"
+	ledgerRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/ledger/repository"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/logger"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/middleware"
+	txHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/handler"
+	txRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/repository"
+	txService "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/service"
 	userHandler "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/handler"
 	userRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 	userService "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/service"
@@ -33,14 +37,18 @@ func main() {
 	// Repository
 	uRepo := userRepository.NewMySQLUserRepository(db)
 	wRepo := walletRepository.NewMySQLWalletRepository(db)
+	tRepo := txRepository.NewMySQLTransactionRepositor(db)
+	lRepo := ledgerRepository.NewMySQLLedgerRepository(db)
 
 	// Service
 	uSvc := userService.NewuserService(db, uRepo, wRepo) // Inject db to user service for transaction
 	wSvc := walletService.NewWalletService(wRepo)
+	tSvc := txService.NewTransactionService(db, tRepo, uRepo, wRepo, lRepo)
 
 	// Handler
 	uHandler := userHandler.NewUserHandler(uSvc)
 	wHandler := walletHandler.NewWalletHandler(wSvc)
+	tHandler := txHandler.NewTransactionHandler(tSvc)
 
 	// 4. Setup gin router
 	// r := gin.Default()
@@ -74,6 +82,7 @@ func main() {
 		{
 			protected.GET("/users/me", uHandler.GetProfileMe)
 			protected.GET("/wallets/me", wHandler.GetMyWallet)
+			protected.POST("/transactions/transfer", tHandler.Transfer)
 		}
 	}
 

@@ -13,7 +13,7 @@ type LedgerRepository interface {
 	GetEntriesByWalletID(ctx context.Context, walletID string) ([]model.LedgerEntry, error)
 }
 
-func NewMysqlLedgerRepository(db *sql.DB) LedgerRepository {
+func NewMySQLLedgerRepository(db *sql.DB) LedgerRepository {
 	return &mysqlLedgerRepository{
 		db: db,
 	}
