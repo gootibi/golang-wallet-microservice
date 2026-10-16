@@ -14,6 +14,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	Update(ctx context.Context, u *model.User) error
 	CreateTx(ctx context.Context, tx *sql.Tx, u *model.User) error
+	SoftDelete(ctx context.Context, id string) error
 }
 
 func NewMySQLUserRepository(db *sql.DB) UserRepository {
@@ -81,6 +82,14 @@ func (r *mysqlUserRepository) CreateTx(ctx context.Context, tx *sql.Tx, u *model
 	query := `INSERT INTO users (id, full_name, email, password_hash) VALUES(?, ?, ?, ?);`
 
 	_, err := tx.ExecContext(ctx, query, u.ID, u.FullName, u.Email, u.PasswordHash)
-	
+
+	return err
+}
+
+// SoftDelete implements [UserRepository].
+func (r *mysqlUserRepository) SoftDelete(ctx context.Context, id string) error {
+	query := "UPDATE users SET deleted_at = NOW() WHERE id = ?;"
+
+	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
