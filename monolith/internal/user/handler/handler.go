@@ -101,3 +101,21 @@ func (h *UserHandler) GetProfileMe(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+func (h *UserHandler) DeleteAccount(c *gin.Context) {
+	userID, exist := c.Get("user_id")
+	if !exist {
+		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "User context not found."))
+		return
+	}
+
+	if err := h.svc.DeleteAccount(c.Request.Context(), userID.(string)); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Account deleted successfully",
+	})
+}

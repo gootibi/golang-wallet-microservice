@@ -80,8 +80,14 @@ func main() {
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// User
 			protected.GET("/users/me", uHandler.GetProfileMe)
+			protected.DELETE("users/me", uHandler.DeleteAccount)
+
+			// Wallet
 			protected.GET("/wallets/me", wHandler.GetMyWallet)
+
+			// Transaction
 			protected.POST("/transactions/transfer", tHandler.Transfer)
 			protected.GET("/transactions/history", tHandler.GetHistory)
 		}

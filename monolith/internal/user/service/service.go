@@ -21,6 +21,7 @@ type UserService interface {
 	GetProfile(ctx context.Context, id string) (*userModel.User, error)
 	UpdateProfile(ctx context.Context, id string, req userModel.UpdateUserRequest) (*userModel.User, error)
 	Login(ctx context.Context, req userModel.LoginRequest) (*userModel.LoginResponse, error)
+	DeleteAccount(ctx context.Context, id string) error
 }
 
 func NewuserService(db *sql.DB, uRepo userRepisitory.UserRepository, wRepo walletRepository.WalletRepository) UserService {
@@ -151,4 +152,18 @@ func (s *userService) Login(ctx context.Context, req userModel.LoginRequest) (*u
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+// DeleteAccount implements [UserService].
+func (s *userService) DeleteAccount(ctx context.Context, id string) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "User not found")
+	}
+
+	if err := s.userRepo.SoftDelete(ctx, user.ID); err != nil {
+		return customError.ErrInternalServer
+	}
+
+	return nil
 }
