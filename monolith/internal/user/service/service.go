@@ -21,6 +21,7 @@ type UserService interface {
 	GetProfile(ctx context.Context, id string) (*userModel.User, error)
 	UpdateProfile(ctx context.Context, id string, req userModel.UpdateUserRequest) (*userModel.User, error)
 	Login(ctx context.Context, req userModel.LoginRequest) (*userModel.LoginResponse, error)
+	UpdateAvatar(ctx context.Context, id string, path string) error
 	DeleteAccount(ctx context.Context, id string) error
 }
 
@@ -152,6 +153,11 @@ func (s *userService) Login(ctx context.Context, req userModel.LoginRequest) (*u
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+// UpdateAvatar implements [UserService].
+func (s *userService) UpdateAvatar(ctx context.Context, id string, path string) error {
+	return s.userRepo.UpdateAvatar(ctx, id, path)
 }
 
 // DeleteAccount implements [UserService].

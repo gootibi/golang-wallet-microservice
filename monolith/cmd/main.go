@@ -82,6 +82,7 @@ func main() {
 		{
 			// User
 			protected.GET("/users/me", uHandler.GetProfileMe)
+			protected.POST("/users/avatar", uHandler.UploadAvatar)
 			protected.DELETE("users/me", uHandler.DeleteAccount)
 
 			// Wallet
