@@ -23,7 +23,7 @@ func (h *TransactionHandler) Transfer(c *gin.Context) {
 	// Get senderUserID from auth middleware
 	senderUserID, exist := c.Get("user_id")
 	if !exist {
-		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "user context not found."))
+		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "User context not found."))
 		return
 	}
 
@@ -43,5 +43,37 @@ func (h *TransactionHandler) Transfer(c *gin.Context) {
 		"success": true,
 		"message": "Transaction successful",
 		"data":    tx,
+	})
+}
+
+func (h *TransactionHandler) GetHistory(c *gin.Context) {
+	userID, exist := c.Get("user_id")
+	if !exist {
+		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "User context not found."))
+		return
+	}
+
+	var params model.PaginationParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_INPUT", err.Error()))
+		return
+	}
+
+	txs, meta, err := h.svc.GetHistory(c.Request.Context(), userID.(string), params)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	// c.JSON(http.StatusOK, model.PaginationResponse[[]model.Transaction]{
+	// 	Success: true,
+	// 	Data:    txs,
+	// 	Meta:    *meta,
+	// })
+
+	c.JSON(http.StatusOK, model.PaginationResponse{
+		Success: true,
+		Data:    txs,
+		Meta:    *meta,
 	})
 }

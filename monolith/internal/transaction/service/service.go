@@ -6,9 +6,11 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/errors"
 	customError "github.com/gootibi/golang-wallet-microservice/monolith/internal/errors"
 	ledgerModel "github.com/gootibi/golang-wallet-microservice/monolith/internal/ledger/model"
 	ledgerRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/ledger/repository"
+	"github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/model"
 	transactionModel "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/model"
 	transactionRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/repository"
 	userRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
@@ -17,6 +19,7 @@ import (
 
 type TransactionService interface {
 	Transfer(ctx context.Context, senderUserID string, req transactionModel.TransferRequest) (*transactionModel.Transaction, error)
+	GetHistory(ctx context.Context, userID string, params model.PaginationParams) ([]model.Transaction, *model.PaginationMeta, error)
 }
 
 func NewTransactionService(
@@ -147,4 +150,36 @@ func (s *transactionService) Transfer(ctx context.Context, senderUserID string, 
 	}
 
 	return transaction, nil
+}
+
+// GetHistory implements [TransactionService].
+func (s *transactionService) GetHistory(ctx context.Context, userID string, params transactionModel.PaginationParams) ([]transactionModel.Transaction, *transactionModel.PaginationMeta, error) {
+	wallet, err := s.walletRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, nil, errors.NewAppError(http.StatusNotFound, "WALLET_NOT_FOUND", "Wallet not found")
+	}
+
+	// Set max limit
+	if params.Limit > 100 {
+		params.Limit = 100
+	}
+
+	txs, total, err := s.txRepo.GetHistory(ctx, wallet.ID, params)
+	if err != nil {
+		return nil, nil, customError.ErrInternalServer
+	}
+
+	totalPages := int(total / int64(params.Limit))
+	if total%int64(params.Limit) != 0 {
+		totalPages++
+	}
+
+	meta := &transactionModel.PaginationMeta{
+		Page:      params.Page,
+		Limit:     params.Limit,
+		Total:     total,
+		TotalPage: totalPages,
+	}
+
+	return txs, meta, nil
 }

@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	customError "github.com/gootibi/golang-wallet-microservice/monolith/internal/errors"
@@ -99,5 +101,78 @@ func (h *UserHandler) GetProfileMe(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    user,
+	})
+}
+
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	userID, exist := c.Get("user_id")
+	if !exist {
+		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "User context not found."))
+		return
+	}
+
+	// get the file from request multipart
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALIDE_FILE", "Please upload an avatar."))
+		return
+	}
+
+	// validate file format
+	if file.Size > 2*1024*1024 {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_FILE", "File size must be less than 2 MB."))
+		return
+	}
+
+	// Validate file content type
+	ext := filepath.Ext(file.Filename)
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_FILE", "Invalid file format. Please upload a JPG, JPEG, or PNG image."))
+		return
+	}
+
+	// Folder for saving
+	uploadDir := "./uploads"
+	_ = os.MkdirAll(uploadDir, os.ModePerm)
+
+	// Rename file based user id
+	filename := userID.(string) + ext
+	dst := filepath.Join(uploadDir, filename)
+
+	// Save the file
+	if err := c.SaveUploadedFile(file, dst); err != nil {
+		c.Error(customError.ErrInternalServer)
+		return
+	}
+
+	// Update user avatar
+	avataURL := "./uploads/" + filename
+	if err := h.svc.UpdateAvatar(c.Request.Context(), userID.(string), avataURL); err != nil {
+		c.Error(customError.ErrInternalServer)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "Avatar update successfully",
+		"avatar_url": avataURL,
+	})
+}
+
+func (h *UserHandler) DeleteAccount(c *gin.Context) {
+	userID, exist := c.Get("user_id")
+	if !exist {
+		c.Error(customError.NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "User context not found."))
+		return
+	}
+
+	if err := h.svc.DeleteAccount(c.Request.Context(), userID.(string)); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Account deleted successfully",
 	})
 }
