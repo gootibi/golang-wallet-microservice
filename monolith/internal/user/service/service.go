@@ -25,7 +25,7 @@ type UserService interface {
 	DeleteAccount(ctx context.Context, id string) error
 }
 
-func NewuserService(db *sql.DB, uRepo userRepisitory.UserRepository, wRepo walletRepository.WalletRepository) UserService {
+func NewUserService(db *sql.DB, uRepo userRepisitory.UserRepository, wRepo walletRepository.WalletRepository) UserService {
 	return &userService{
 		db:         db,
 		userRepo:   uRepo,
