@@ -41,7 +41,7 @@ func main() {
 	lRepo := ledgerRepository.NewMySQLLedgerRepository(db)
 
 	// Service
-	uSvc := userService.NewuserService(db, uRepo, wRepo) // Inject db to user service for transaction
+	uSvc := userService.NewUserService(db, uRepo, wRepo) // Inject db to user service for transaction
 	wSvc := walletService.NewWalletService(wRepo)
 	tSvc := txService.NewTransactionService(db, tRepo, uRepo, wRepo, lRepo)
 
