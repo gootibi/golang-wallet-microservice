@@ -1,0 +1,400 @@
+basePath: /api/v1
+definitions:
+  errors.AppError:
+    properties:
+      _:
+        description: we don1t want to expose this to json client
+        type: integer
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  model.CreateUserRequest:
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      full_name:
+        example: John Doe
+        type: string
+      password:
+        description: more long is better
+        example: "123456"
+        minLength: 6
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  model.LoginRequest:
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      password:
+        example: "123456"
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  model.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_page:
+        type: integer
+    type: object
+  model.PaginationResponse:
+    properties:
+      data: {}
+      meta:
+        $ref: '#/definitions/model.PaginationMeta'
+      success:
+        type: boolean
+    type: object
+  model.TransferRequest:
+    properties:
+      amount:
+        type: number
+      description:
+        type: string
+      idempotency_key:
+        type: string
+      receiver_email:
+        type: string
+    required:
+    - amount
+    - idempotency_key
+    - receiver_email
+    type: object
+  model.UpdateUserRequest:
+    properties:
+      full_name:
+        type: string
+    required:
+    - full_name
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: gootibi@gmail.com
+    name: API Support
+  description: API Documentation for GoWallet
+  termsOfService: http://swagger.io/terms/
+  title: GoWallet Monolith API
+  version: "1.0"
+paths:
+  /transactions/history:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of transactions involving the authenticated
+        user
+      parameters:
+      - description: 'page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'page limit (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'sort column (default: created_at)'
+        in: query
+        name: sort
+        type: string
+      - description: 'sort order (default: desc)'
+        in: query
+        name: order
+        type: string
+      - description: filter by status (success/failed)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns success: true, data: []model.Transaction, and data:
+            model.PaginationMeta'
+          schema:
+            $ref: '#/definitions/model.PaginationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get Transaction History
+      tags:
+      - Transactions
+  /transactions/transfer:
+    get:
+      consumes:
+      - application/json
+      description: Transfer money to another user's wallet using email
+      parameters:
+      - description: transfer payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns success: true, message: Transaction successful, and
+            data: model.Transaction'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Transfer accounts
+      tags:
+      - Transactions
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get user profile by user id
+      parameters:
+      - description: user id (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.User'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: Get User Profile
+      tags:
+      - Users
+    post:
+      description: Soft delete user account
+      responses:
+        "200":
+          description: 'Returns success: true and message: Account deleted successfully'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete User Account
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update the authenticated user profile details
+      parameters:
+      - description: user id (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: update profile payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: Update User Profile
+      tags:
+      - Users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, returning JWT access
+        and refresh tokens
+      parameters:
+      - description: login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns a payload with success: true and data: model.LoginResponse'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: User Login
+      tags:
+      - Users
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: Get current authenticated user profile using token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns success: true and data: model.User'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get My Profile
+      tags:
+      - Users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Create new User with default walllet
+      parameters:
+      - description: register user payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: Register New User
+      tags:
+      - Users
+  /wallets/me:
+    get:
+      consumes:
+      - application/json
+      description: Get current authenticated user's wallet info (balance, currency,
+        etc.)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns success: true and data: model.Wallet'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get My Wallet
+      tags:
+      - Wallets
+securityDefinitions:
+  BearerAuth:
+    description: '"Bearer eyJhbGciOi..."'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

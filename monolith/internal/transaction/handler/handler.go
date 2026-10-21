@@ -19,6 +19,22 @@ func NewTransactionHandler(svc service.TransactionService) *TransactionHandler {
 	}
 }
 
+// Transfer godoc
+//
+//	@Summary		Transfer accounts
+//	@Description	Transfer money to another user's wallet using email
+//	@Tags			Transactions
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		model.TransferRequest	true	"transfer payload"
+//	@Success		200		{object}	map[string]interface{}	"Returns success: true, message: Transaction successful, and data: model.Transaction"
+//	@Failure		400		{object}	errors.AppError
+//	@Failure		401		{object}	errors.AppError
+//	@Failure		404		{object}	errors.AppError
+//	@Failure		409		{object}	errors.AppError
+//	@Failure		500		{object}	errors.AppError
+//	@Router			/transactions/transfer [get]
+//	@Security		BearerAuth
 func (h *TransactionHandler) Transfer(c *gin.Context) {
 	// Get senderUserID from auth middleware
 	senderUserID, exist := c.Get("user_id")
@@ -46,6 +62,25 @@ func (h *TransactionHandler) Transfer(c *gin.Context) {
 	})
 }
 
+// GetHistory godoc
+//
+//	@Summary		Get Transaction History
+//	@Description	Get paginated list of transactions involving the authenticated user
+//	@Tags			Transactions
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int							false	"page number (default: 1)"
+//	@Param			limit	query		int							false	"page limit (default: 10)"
+//	@Param			sort	query		string						false	"sort column (default: created_at)"
+//	@Param			order	query		string						false	"sort order (default: desc)"
+//	@Param			status	query		string						false	"filter by status (success/failed)"
+//	@Success		200		{object}	model.PaginationResponse	"Returns success: true, data: []model.Transaction, and data: model.PaginationMeta"
+//	@Failure		400		{object}	errors.AppError
+//	@Failure		401		{object}	errors.AppError
+//	@Failure		404		{object}	errors.AppError
+//	@Failure		500		{object}	errors.AppError
+//	@Router			/transactions/history [get]
+//	@Security		BearerAuth
 func (h *TransactionHandler) GetHistory(c *gin.Context) {
 	userID, exist := c.Get("user_id")
 	if !exist {
@@ -54,7 +89,7 @@ func (h *TransactionHandler) GetHistory(c *gin.Context) {
 	}
 
 	var params model.PaginationParams
-	if err := c.ShouldBindJSON(&params); err != nil {
+	if err := c.ShouldBindQuery(&params); err != nil {
 		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_INPUT", err.Error()))
 		return
 	}

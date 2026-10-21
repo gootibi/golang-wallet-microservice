@@ -1,6 +1,10 @@
 package main
 
 import (
+	_ "github.com/gootibi/golang-wallet-microservice/monolith/docs"
+	swaggerFile "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/config"
 	"github.com/gootibi/golang-wallet-microservice/monolith/internal/database"
@@ -18,6 +22,21 @@ import (
 	walletService "github.com/gootibi/golang-wallet-microservice/monolith/internal/wallet/service"
 )
 
+//	@title			GoWallet Monolith API
+//	@version		1.0
+//	@description	API Documentation for GoWallet
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.email	gootibi@gmail.com
+
+//	@host		localhost:8080
+//	@BasePath	/api/v1
+
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				"Bearer eyJhbGciOi..."
 func main() {
 	// Initialize the log
 	logger.InnitLogger()
@@ -65,6 +84,9 @@ func main() {
 
 	// Register global error Handling middleware
 	r.Use(middleware.ErrorHandler())
+
+	// Register the Swagger API
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFile.Handler))
 
 	// Routes grouping
 	v1 := r.Group("/api/v1")

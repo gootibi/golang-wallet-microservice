@@ -5,12 +5,12 @@ import "time"
 type TransactionStatus string
 
 const (
-	PENDING    TransactionStatus = "pending"
+	PENDING TransactionStatus = "pending"
 	// PROCESSING TransactionStatus = "processing"
-	SUCCESS    TransactionStatus = "success"
+	SUCCESS TransactionStatus = "success"
 	// COMPLETED  TransactionStatus = "completed"
 	// CONFIRMED  TransactionStatus = "confirmed"
-	FAILED     TransactionStatus = "failed"
+	FAILED TransactionStatus = "failed"
 	// ERROR      TransactionStatus = "error"
 	// CANCELLED  TransactionStatus = "cancelled"
 	// EXPIRED    TransactionStatus = "expired"
@@ -19,10 +19,10 @@ const (
 type Transaction struct {
 	ID               string            `json:"id"`
 	SenderWalletID   *string           `json:"sender_wallet_id"` // nullable if top up
-	ReceiverWalletID string            `json:"receiver_wallet_id"`
-	Amount           float64           `json:"amount"`
-	Description      string            `json:"description"`
-	IdempotencyKey   string            `json:"idempotency_key"`
+	ReceiverWalletID string            `json:"receiver_wallet_id" example:"receiver@example.com"`
+	Amount           float64           `json:"amount" example:"50000"`
+	Description      string            `json:"description" example:"Dinner split"`
+	IdempotencyKey   string            `json:"idempotency_key" example:"unique-uuid-key-123"`
 	Status           TransactionStatus `json:"status"`
 	CreatedAt        time.Time         `json:"created_at"`
 }
