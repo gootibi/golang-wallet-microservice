@@ -1,10 +1,10 @@
 package model
 
 type PaginationParams struct {
-	Page   int    `form:"page,default=1"`
-	Limit  int    `form:"limit,default=10"`
-	Sort   string `form:"sort,default=created_at"`
-	Order  string `form:"order,default=desc"`
+	Page   int    `form:"page,default=1" example:"1"`
+	Limit  int    `form:"limit,default=10"  example:"10"`
+	Sort   string `form:"sort,default=created_at" example:"created_at"`
+	Order  string `form:"order,default=desc" example:"desc"`
 	Status string `form:"status"` // Optional filter status
 }
 
