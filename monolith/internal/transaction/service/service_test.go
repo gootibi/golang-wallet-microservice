@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redis/redismock/v9"
 	ledgerRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/ledger/repository"
 	transactionModel "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/model"
 	transactionRepository "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/repository"
@@ -31,8 +34,11 @@ func TestTransfer_Success(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, mockRedis := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -83,6 +89,11 @@ func TestTransfer_Success(t *testing.T) {
 	// Create two ledger rows
 	mockLedgerRepo.On("CreateTx", ctx, mock.Anything, mock.Anything).Return(nil).Twice()
 
+	// Expect cache invalidation
+	senderCachekey := fmt.Sprintf("wallet:user:%s", senderUserID)
+	receiverCacheKey := fmt.Sprintf("wallet:user:%s", receiverUser.ID)
+	mockRedis.ExpectDel(senderCachekey, receiverCacheKey).SetVal(2)
+
 	// Run the function
 	txRes, err := svc.Transfer(ctx, senderUserID, req)
 
@@ -91,6 +102,9 @@ func TestTransfer_Success(t *testing.T) {
 	assert.NotNil(t, txRes)
 	assert.Equal(t, req.Amount, txRes.Amount)
 	assert.Equal(t, transactionModel.SUCCESS, txRes.Status)
+
+	// Sleep slightly to let the async Redis Del goroutine complete
+	time.Sleep(10 * time.Millisecond)
 
 	// Make sure all mock if called and expected
 	mockTxRepo.AssertExpectations(t)
@@ -114,8 +128,11 @@ func TestTransfer_ReceiverNotFound(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -129,6 +146,7 @@ func TestTransfer_ReceiverNotFound(t *testing.T) {
 	// Expect mock
 	// Check idempoteny key
 	mockTxRepo.On("GetByIdempotencyKey", ctx, req.IdempotencyKey).Return(nil, errors.New("Not found"))
+
 	// Look receiver
 	mockUserRepo.On("GetByEmail", ctx, req.ReceiverEmail).Return(nil, errors.New("Receiver not found."))
 
@@ -160,8 +178,11 @@ func TestTransfer_SelfTransferNotAllowed(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -232,8 +253,11 @@ func TestTransfer_InsufficientBalance(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -303,8 +327,11 @@ func TestTransfer_SenderWalletNotFound(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -368,8 +395,11 @@ func TestTransfer_ReceiverWalletNotFound(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -432,8 +462,11 @@ func TestTransfer_UpdateBalanceFailed(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -506,8 +539,11 @@ func TestTransfer_CreateTransactionFailed(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -584,8 +620,11 @@ func TestTransfer_CreateLedgerFailed(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -664,8 +703,11 @@ func TestTransfer_TxCommitError(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -747,8 +789,11 @@ func TestTransfer_TxBeginError(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	senderUserID := "sender-uuid"
@@ -800,8 +845,11 @@ func TestGetHistory_Success(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	userID := "user-uuid"
@@ -846,8 +894,11 @@ func TestGetHistory_WalletNotFound(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	userID := "user-uuid"
@@ -884,8 +935,11 @@ func TestGetHistory_TxGetHistoryFailed(t *testing.T) {
 	mockWalletRepo := new(walletRepository.MockWalletRepository)
 	mockLedgerRepo := new(ledgerRepository.MockLedgerRepository)
 
+	// Initiate Redis mock
+	rdb, _ := redismock.NewClientMock()
+
 	// We no need real sql.DB connection, so we sent sql mock
-	svc := NewTransactionService(db, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
+	svc := NewTransactionService(db, rdb, mockTxRepo, mockUserRepo, mockWalletRepo, mockLedgerRepo)
 
 	ctx := context.TODO()
 	userID := "user-uuid"
