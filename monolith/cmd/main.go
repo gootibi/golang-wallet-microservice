@@ -46,11 +46,19 @@ func main() {
 	cfg := config.LoadConfog()
 
 	// 2. Connect to database with retry
+	// MySQL db
 	db, err := database.ConnectWithRetry(cfg.DBDSN)
 	if err != nil {
 		logger.Log.Error("Critical Error: Could not connect to database after retries", "error", err)
 	}
 	defer db.Close()
+
+	// Redis db
+	rdb, err := database.ConnectRedis(cfg.RedisAddr)
+	if err != nil {
+		logger.Log.Error("Critical Error: Could not connect to Redis db after retries", "error", err)
+	}
+	defer rdb.Close()
 
 	// 3. Initial layer
 	// Repository
@@ -61,8 +69,8 @@ func main() {
 
 	// Service
 	uSvc := userService.NewUserService(db, uRepo, wRepo) // Inject db to user service for transaction
-	wSvc := walletService.NewWalletService(wRepo)
-	tSvc := txService.NewTransactionService(db, tRepo, uRepo, wRepo, lRepo)
+	wSvc := walletService.NewWalletService(wRepo, rdb)
+	tSvc := txService.NewTransactionService(db, rdb, tRepo, uRepo, wRepo, lRepo)
 
 	// Handler
 	uHandler := userHandler.NewUserHandler(uSvc)
@@ -95,8 +103,6 @@ func main() {
 		v1.POST("/users/register", uHandler.Register)
 		v1.POST("/users/login", uHandler.Login)
 		// v1.POST("/users", uHandler.Register)
-		// v1.GET("/users/:id", uHandler.GetProfile)
-		// v1.PUT("/users/:id", uHandler.UpdateProfile)
 
 		// Protected routes, only can be accessible if have valid JWT token
 		protected := v1.Group("")
@@ -105,7 +111,9 @@ func main() {
 			// User
 			protected.GET("/users/me", uHandler.GetProfileMe)
 			protected.POST("/users/avatar", uHandler.UploadAvatar)
-			protected.DELETE("users/me", uHandler.DeleteAccount)
+			protected.PUT("/users/:id", uHandler.UpdateProfile)
+			protected.GET("/users/:id", uHandler.GetProfile)
+			protected.DELETE("/users/me", uHandler.DeleteAccount)
 
 			// Wallet
 			protected.GET("/wallets/me", wHandler.GetMyWallet)

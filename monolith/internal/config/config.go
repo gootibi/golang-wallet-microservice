@@ -9,7 +9,8 @@ import (
 )
 
 type Config struct {
-	DBDSN string
+	DBDSN     string
+	RedisAddr string
 }
 
 func LoadConfog() *Config {
@@ -25,7 +26,13 @@ func LoadConfog() *Config {
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_NAME"))
 
+	redisAddr := fmt.Sprintf("%s:%s",
+		os.Getenv("REDIS_HOST"),
+		os.Getenv("REDIS_PORT"),
+	)
+
 	return &Config{
-		DBDSN: dsn,
+		DBDSN:     dsn,
+		RedisAddr: redisAddr,
 	}
 }

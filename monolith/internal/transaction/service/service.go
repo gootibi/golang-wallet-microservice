@@ -15,6 +15,7 @@ import (
 	transactionRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/transaction/repository"
 	userRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/user/repository"
 	walletRepo "github.com/gootibi/golang-wallet-microservice/monolith/internal/wallet/repository"
+	"github.com/redis/go-redis/v9"
 )
 
 type TransactionService interface {
@@ -24,6 +25,7 @@ type TransactionService interface {
 
 func NewTransactionService(
 	db *sql.DB,
+	rdb *redis.Client,
 	tRepo transactionRepo.TransactionRepository,
 	uRepo userRepo.UserRepository,
 	wRepo walletRepo.WalletRepository,
@@ -31,6 +33,7 @@ func NewTransactionService(
 ) TransactionService {
 	return &transactionService{
 		db:         db,
+		rdb:        rdb,
 		txRepo:     tRepo,
 		userRepo:   uRepo,
 		walletRepo: wRepo,
@@ -40,6 +43,7 @@ func NewTransactionService(
 
 type transactionService struct {
 	db         *sql.DB
+	rdb        *redis.Client
 	txRepo     transactionRepo.TransactionRepository
 	userRepo   userRepo.UserRepository
 	walletRepo walletRepo.WalletRepository
@@ -148,6 +152,15 @@ func (s *transactionService) Transfer(ctx context.Context, senderUserID string, 
 	if err = tx.Commit(); err != nil {
 		return nil, customError.ErrInternalServer
 	}
+
+	// Invalidate cache Redis
+	senderCacheKey := "wallet:user:" + senderUserID
+	receiverCacheKey := "wallet:user:" + receiverUser.ID
+
+	// Delete the cache keys asynchronously (don't block HTTP response)
+	go func() {
+		s.rdb.Del(context.Background(), senderCacheKey, receiverCacheKey)
+	}()
 
 	return transaction, nil
 }
